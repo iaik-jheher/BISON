@@ -1,0 +1,31 @@
+
+impl:
+  image: gradle:8-jdk8-jammy
+  stage: build
+  tags: 
+    - docker
+  before_script:
+    - GRADLE_USER_HOME="$(pwd)/.gradle"
+    - export GRADLE_USER_HOME
+  script:
+    - echo "LIB ---------------------------------------------------------------"
+    - cd ./bison-oprf
+    - ./gradlew jar
+    - ls build/libs
+    - echo "IDP ---------------------------------------------------------------"
+    - cd ../identity-provider
+    - ./gradlew build
+    - ./gradlew buildImage
+    - ./gradlew publishImage
+    - echo "SP ----------------------------------------------------------------"
+    - cd ../service-provider
+    - ./gradlew build
+    - ./gradlew buildImage
+    - ./gradlew publishImage
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: push
+    paths:
+      - build
+      - .gradle
+

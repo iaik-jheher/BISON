@@ -1,0 +1,31 @@
+{
+    "manifest_version": 2,
+    "name": "BISON Authentication Proxy",
+    "version": "0.0.8",
+    "description": "Grazes serenely.",
+    "icons": {
+        "48": "icons/icon-48x48.webp",
+        "96": "icons/icon-96x96.webp"
+    },
+    "permissions": ["storage","*://localhost/*","https://serene.grasslands.digital/*"],
+    "content_scripts": [
+        {
+            "matches": ["*://localhost/*","https://serene.grasslands.digital/*"],
+            "js": ["content.js"],
+            "run_at": "document_start"
+        }
+    ],
+    "background": {
+        "scripts": ["background.js"],
+        "type": "module",
+        "persistent": false
+    },
+    "web_accessible_resources": [
+        "return.html"
+    ],
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "{102db884-ad9a-475c-a5fb-c6d9e8744d2e}"
+        }
+    }
+}

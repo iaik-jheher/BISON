@@ -1,0 +1,114 @@
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+body {
+    font-size: 110%;
+
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    background-size: cover;
+
+    background-image: url("/static/bison.jpg");
+    background-position: center;
+
+    font-family: Garamond, "Times New Roman", serif;
+}
+
+main, h1 {
+    background: rgba(255,255,255,.93);
+    border-radius: 20px;
+    padding: 15px;
+}
+
+h1 {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+}
+
+#picker {
+    display: flex;
+    flex-direction: row;
+    margin: 5px;
+    gap: 5px;
+}
+#picker input { display: none; }
+#picker label {
+    display: block;
+    flex-basis: 0;
+    flex-grow: 1;
+    border-radius: 5px;
+    border: 1px solid #000;
+    margin: 2px;
+    cursor: pointer;
+
+    aspect-ratio: 4/3;
+    background-position: center;
+    background-size: cover;
+    background-origin: border-box;
+
+    transition: opacity .25s, border-width .25s, margin .25s;
+    opacity: 0.9;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+}
+#picker input:checked + label {
+    font-weight: bold;
+    border-width: 3px;
+    margin: 0;
+    collapse: none;
+    opacity: 1;
+    cursor: default;
+}
+#picker label:hover {
+    opacity: 1;
+}
+
+#picker .name {
+    padding: 2px;
+    background: rgba(255,255,255,.85);
+    border-radius: 4px;
+    margin: 5px;
+    font-weight: bold;
+    font-size: 120%;
+}
+
+.submit {
+    width: 80%;
+    margin: 0 10%;
+}
+form:invalid > .enabled, form:not(:invalid) > .disabled {
+    display: none;
+}
+
+#version-note {
+    position: fixed;
+    font-size: 50%;
+    opacity: .35;
+    left: 0;
+    bottom: 0;
+    border-top-right-radius: 10px;
+    padding: 3px 6px 2px 2px;
+    background: rgba(255,255,255,.93);
+}
+#version-note:hover { opacity: 1; font-size: 80%; }
+
+#source-note {
+    position: fixed;
+    font-size: 75%;
+    right: 0;
+    bottom: 0;
+    border-top-left-radius: 10px;
+    padding: 3px 2px 2px 6px;
+    background: rgba(255,255,255,.93);
+}
