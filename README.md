@@ -5,10 +5,10 @@
 
 ### Repository Structure
 
-- `bison-oprf`: BISON instantiation (see paper for details)
+- `bison-oprf`: BISON instantiation in Kotlin (see paper for details)
 - `extension `: Firefox extension simulating the proposed browser modifications 
-- `service-provider`: 
-- `identity-provider`: 
+- `service-provider`: OIDC SP using BISON
+- `identity-provider`:  OIDC IDP using BISON
 
 
 ### Demo
