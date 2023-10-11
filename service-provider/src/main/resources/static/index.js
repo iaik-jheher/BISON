@@ -1,5 +1,5 @@
 (()=> {
-    if ((!('BISON' in window)) || (window.BISON.version !== '0.0.8')) {
+    if ((!('BISON' in window)) || (window.BISON.version !== '0.0.9')) {
         window.location = '/extension.html';
         return;
     }
