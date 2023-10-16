@@ -15,13 +15,13 @@
 
 For convenience, the source code of this repo is deployed to
 
-- SP: https://serene.grasslands.digital/ (/start here!/)
+- SP: https://serene.grasslands.digital (**start here!**)
 - IDP: https://choose.from.bison.pics
 
 
 
 ### References
 
-- Conference version: /todo/
-- Preprint: /todo/
+- Conference version: *todo*
+- Preprint: *todo*
 
