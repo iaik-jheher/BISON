@@ -3,7 +3,7 @@ plugins {
     application
 }
 
-group = "at.jheher"
+group = "ec"
 version = "1.0-SNAPSHOT"
 
 repositories {

@@ -10,7 +10,7 @@ plugins {
     application
 }
 
-group = "at.jheher"
+group = "ec"
 version = "1.0-SNAPSHOT"
 
 repositories {
@@ -87,8 +87,6 @@ application {
          * - hostname/project
          * - project
 */
-
-// should be: extgit.iaik.tugraz.at:8443/jheher/paper-oprf-blind-auth/sp
 
 ktor {
     docker {

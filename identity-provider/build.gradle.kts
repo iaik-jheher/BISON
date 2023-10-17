@@ -10,7 +10,7 @@ plugins {
     application
 }
 
-group = "at.jheher"
+group = "ec"
 version = "1.0-SNAPSHOT"
 
 repositories {
@@ -84,8 +84,6 @@ val versionFile = File(buildDir,"resources/main/bison/VERSION").also {
          * - hostname/project
          * - project
 */
-
-// should be: extgit.iaik.tugraz.at:8443/jheher/paper-oprf-blind-auth/idp
 
 ktor {
     docker {
