@@ -1,6 +1,6 @@
 # Paper Artifacts
 
-## BISON: Blind Identification through Stateless scOpe-specific derivatioN
+## BISON: Blind Identification with Stateless scOped pseudoNyms
 
 
 ### Repository Structure
