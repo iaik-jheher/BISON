@@ -11,15 +11,6 @@
 - `identity-provider`:  OIDC IdP using BISON
 
 
-### Demo
-
-For convenience, the source code of this repository is deployed to
-
-- SP: https://serene.grasslands.digital (**start here!**)
-- IDP: https://choose.from.bison.pics
-
-
-
 ### References
 
 - Conference version: *todo*
