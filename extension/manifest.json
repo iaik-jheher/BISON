@@ -7,7 +7,7 @@
         "48": "icons/icon-48x48.webp",
         "96": "icons/icon-96x96.webp"
     },
-    "permissions": ["storage","webRequest","webRequestBlocking","https://*/*","http://localhost/*"],
+    "permissions": ["storage","webRequest","webRequestBlocking","https://bison.grazing.website/*","https://choose.from.bison.pics/*","https://anonymous.invalid/bison","http://localhost/*"],
     "background": {
         "scripts": ["background.js"],
         "type": "module",

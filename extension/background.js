@@ -288,7 +288,7 @@ browser.webRequest.onBeforeRequest.addListener(async function(requestDetails) {
             return {redirectUrl: target.toString()};
         }
     } catch (e) { console.error(e); return {cancel:true}; }
-}, { 'urls': ['https://*/*','http://localhost/*'], 'types': ['main_frame'] }, ['blocking']);
+}, { 'urls': ['https://bison.grazing.website/*','https://choose.from.bison.pics/*','http://localhost/*'], 'types': ['main_frame'] }, ['blocking']);
 
 browser.webRequest.onBeforeRequest.addListener(async function(requestDetails) {
     try {
