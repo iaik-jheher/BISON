@@ -25,7 +25,7 @@ const sha512 = (async(str) => {
 
 // locally-included copy of https://publicsuffix.org/list/public_suffix_list.dat
 const publicSuffixList = (async () => {
-    const list = (await (await fetch(browser.runtime.getURL('./public_suffix_list.dat'))).text())
+    const list = (await (await fetch(browser.runtime.getURL('public_suffix_list.dat'))).text())
                     .split('\n').map((e => e.trim())).filter((o)=>(o)).filter(o => !o.startsWith('//'));
     let rulesByTLD = {};
     for (const rule of list) {
@@ -99,8 +99,8 @@ const isRegistrableDomainSuffixOrIsEqual = (async (hostSuffixString, originalHos
 window.getPublicSuffix = getPublicSuffix;
 window.isRegistrableDomainSuffixOrIsEqual = isRegistrableDomainSuffixOrIsEqual;
     
-const authnPage = browser.runtime.getURL('./authn.html');
-const returnPage = browser.runtime.getURL('./return.html');
+const authnPage = browser.runtime.getURL('authn.html');
+const returnPage = browser.runtime.getURL('return.html');
 
 // non-async cache to ensure operation atomicity
 const _stateCache = {}
@@ -143,62 +143,40 @@ const popState = (async (id) => {
 });
 
 const handleRequest = (async function(message, sender) {
-    const idpURL = safeget(message,'authorizationEndpointURI','string');
-    const scopeId = safeget(message,'scopeId','string');
-    const nonce = safeget(message,'nonce','string');
-    const state = safeget(message,'state','string');
-    const returnURL = safeget(message,'redirectURI','string');
+    if (sender.id !== browser.runtime.id)
+        return { success: false, message: 'Illegal access' };
+
+    const responseURL = safeurl(sender.url);
     
-    const currentTabURL = safeurl(sender.url);
-    const effectiveDomain = currentTabURL.hostname;
-    if (!(await isRegistrableDomainSuffixOrIsEqual(scopeId, effectiveDomain)))
-        throw new DOMException(`Value for scopeId is invalid, expected registerable superdomain of '${effectiveDomain}'.`, 'SecurityError');
+    {
+        const dummyURL = new URL(responseURL);
+        dummyURL.search = '';
+        if (dummyURL.toString() !== authnPage)
+            return { success: false, message: 'Illegal access' };
+    }
     
-    if (sender.frameId !== 0)
-        throw new DOMException('Not permitted from frames.', 'SecurityError');
+    const ourState = responseURL.searchParams.get('state');
+    const state = await popState(ourState);
+    if (!(state && state.idp && state.sp && state.audience))
+        return { success: false, message: 'Unexpected state; did you refresh the page/use the back button?' };
+    return { success: true, state };
+});
+
+const consentResolversByWindowId = {};
+const handleConsent = (async function(message, sender) {
+    if (sender.id !== browser.runtime.id)
+        return { success: false, message: 'Illegal access' };
     
-    const returnURLParsed = safeurl(returnURL);
-    if (returnURLParsed.host !== currentTabURL.host)
-        throw new DOMException('Invalid return URL, must be same host.');
+    const responseURL = safeurl(sender.url);
     
-    const authnURL = safeurl(idpURL);
-    authnURL.searchParams.set('scope', 'openid');
-    authnURL.searchParams.set('response_mode', 'query');
-    authnURL.searchParams.set('response_type', 'id_token');
-    authnURL.searchParams.set('redirect_uri', returnPage)
-    authnURL.searchParams.set('pairwise_subject_type', 'bison');
+    {
+        const dummyURL = new URL(responseURL);
+        dummyURL.search = '';
+        if (dummyURL.toString() !== authnPage)
+            return { success: false, message: 'Illegal access' };
+    }
     
-    const scope = await sha512("HashToGroup"+scopeId);
-    const encodedScope = ristretto255.fromHash(scope);
-    const blind = ristretto255.scalar.getRandom();
-    const blindedScope = ristretto255.scalarMult(blind, encodedScope);
-    const newNonce = b64url(await sha512("BISON:"+currentTabURL.origin+":"+nonce));
-    
-    const ourState = await putState({
-        returnURL,
-        theirState: state,
-        blind: b64url(blind)
-    });
-    authnURL.searchParams.set('client_id',b64url(blindedScope));
-    authnURL.searchParams.set('state', ourState);
-    authnURL.searchParams.set('nonce', newNonce);
-    
-    const newTab = await browser.tabs.update(sender.tab.id, {url: authnPage});
-    
-    let fn;
-    fn = ((id,changeInfo,tab) => {
-        if (tab.url && (tab.url !== authnPage)) {
-            browser.tabs.onUpdated.removeListener(fn);
-            return;
-        }
-        
-        if (tab.status !== 'complete')
-            return;
-        
-        browser.tabs.sendMessage(id, { authnURL: authnURL.toString(), scopeId, spOrigin: currentTabURL.host });
-        browser.tabs.onUpdated.removeListener(fn);
-    });
-    browser.tabs.onUpdated.addListener(fn, { tabId: newTab.id });
+    consentResolversByWindowId[sender.tab?.windowId]?.(true);
 });
 
 const handleResponse = (async function(message, sender) {
@@ -219,20 +197,18 @@ const handleResponse = (async function(message, sender) {
     if (!state)
         return { success: false, message: 'Unexpected state; did you refresh the page/use the back button?' };
     
-    const { returnURL, theirState, blind } = state;
+    const { idToken, error, returnURL, theirState, blind } = state;
     
-    const error = responseURL.searchParams.get('error');
     if (error) {
         let params = { 'error': error, 'state': theirState };
         
-        const errorDesc = responseURL.searchParams.get('error_description');
+        const errorDesc = state.error_description;
         if (errorDesc) params['error_description'] = errorDesc;
-        const errorUri = responseURL.searchParams.get('error_uri');
+        const errorUri = state.error_uri;
         if (errorUri) params['error_uri'] = errorUri;
         return { success: true, returnURL, params };
     }
     
-    const idToken = responseURL.searchParams.get('id_token');
     if (!idToken) {
         return { success: true, returnURL, params: { 'error': 'server_error', 'error_description': 'No id_token received from server', 'state': theirState } }
     }
@@ -243,7 +219,86 @@ const handleResponse = (async function(message, sender) {
 browser.runtime.onMessage.addListener(async function(message, sender) {
     switch (message.type) {
         case 'request': return handleRequest(message.message, sender);
+        case 'consent': return handleConsent(message.message, sender);
         case 'response': return handleResponse(message.message, sender);
         default: throw new DOMException('Unexpected error.');
     }
 });
+
+const consentPopup = (async (spOrigin, idpOrigin, audienceId) => {
+    const state = await putState({sp: spOrigin, idp: idpOrigin, audience: audienceId});
+    const window = await browser.windows.create({
+        type: 'detached_panel',
+        url: `authn.html?state=${state}`,
+        width: 800,
+        height: 600,
+    });
+    return new Promise((r) => { consentResolversByWindowId[window.id] = r; });
+});
+browser.windows.onRemoved.addListener(function(id) {
+    consentResolversByWindowId[id]?.(false);
+});
+
+browser.webRequest.onBeforeRequest.addListener(async function(requestDetails) {
+    try {
+        if (!(requestDetails.originUrl && requestDetails.url)) return;
+        const origin = safeurl(requestDetails.originUrl);
+        const target = safeurl(requestDetails.url);
+        if (target.searchParams.get('scope')?.includes('openid')) {
+            console.log(`OIDC request ${origin.origin} -> ${target.origin}`);
+            if (target.searchParams.get('pairwise_subject_type')) { /* already processed */ return; }
+            if (target.searchParams.get('response_type') !== 'id_token') { console.log('not implicit flow'); return; }
+            if (target.searchParams.get('response_mode') !== 'form_post') { console.log('not form_post (insecure)'); return; }
+            if (target.searchParams.get('pairwise_subject_types') !== 'bison') { console.log('bison unsupported'); return; }
+            
+            const theirState = target.searchParams.get('state');
+            const audienceId = target.searchParams.get('audience_id') ?? safeurl(target.searchParams.get('client_id')).hostname;
+            const redirectUri = target.searchParams.get('redirect_uri');
+            const theirNonce = target.searchParams.get('nonce');
+            if (!(theirState && audienceId && redirectUri && theirNonce)) { console.log('incomplete information '); return; }
+            if (!(await isRegistrableDomainSuffixOrIsEqual(audienceId, origin.hostname))) { console.log(`invalid audience ID (expected registrable superdomain of '${origin.hostname}'.`); return; }
+            if (safeurl(redirectUri).host !== origin.host) { console.log('invalid return uri'); return; }
+            
+            const shouldProceed = await consentPopup(origin.origin, target.origin, audienceId);
+            if (!shouldProceed) {
+                const newState = await putState({returnURL: redirectUri, theirState, error: 'access_denied', error_description: 'Process cancelled by user'});
+                return {redirectUrl: returnPage.toString()+`?state=${newState}`};
+            }
+            
+            const audience = await sha512('HashToGroup'+audienceId);
+            const encodedScope = ristretto255.fromHash(audience);
+            const blind = ristretto255.scalar.getRandom();
+            const blindedScope = ristretto255.scalarMult(blind, encodedScope);
+            const newNonce = b64url(await sha512('BISON:'+origin.origin+':'+theirNonce));
+            
+            const ourState = await putState({
+                returnURL: redirectUri,
+                theirState,
+                blind: b64url(blind)
+            });
+            
+            target.searchParams.delete('audience_id');
+            target.searchParams.delete('pairwise_subject_types');
+            target.searchParams.set('client_id',b64url(blindedScope));
+            target.searchParams.set('pairwise_subject_type','bison'),
+            target.searchParams.set('nonce', newNonce);
+            target.searchParams.set('redirect_uri', 'https://anonymous.invalid/bison');
+            target.searchParams.set('state', ourState);
+            
+            return {redirectUrl: target.toString()};
+        }
+    } catch (e) { console.error(e); return {cancel:true}; }
+}, { 'urls': ['https://*/*','http://localhost/*'], 'types': ['main_frame'] }, ['blocking']);
+
+browser.webRequest.onBeforeRequest.addListener(async function(requestDetails) {
+    try {
+        const ourState = requestDetails.requestBody.formData['state'][0];
+        const responseInfo = await popState(ourState);
+        if (!responseInfo) throw 'Invalid state?';
+        if (responseInfo.idToken || responseInfo.error) throw 'Duplicate ID token?';
+        responseInfo.idToken = requestDetails.requestBody.formData['id_token']?.[0];
+        responseInfo.error = requestDetails.requestBody.formData['error']?.[0]
+        const newState = await putState(responseInfo);
+        return {redirectUrl: returnPage.toString()+`?state=${newState}`};
+    } catch (e) { console.error(e); return {cancel:true}; }
+}, { 'urls': ['https://anonymous.invalid/bison'], 'types': ['main_frame'] }, ['blocking', 'requestBody']);

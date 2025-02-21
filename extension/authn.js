@@ -1,3 +1,25 @@
+document.getElementById('authn-btn').addEventListener('click', () => {
+    browser.runtime.sendMessage({type: 'consent'});
+    browser.windows.remove(browser.windows.WINDOW_ID_CURRENT);
+});
+document.getElementById('cancel-btn').addEventListener('click', () => {
+    browser.windows.remove(browser.windows.WINDOW_ID_CURRENT);
+});
+
+(async () => {    
+    const info = await browser.runtime.sendMessage({type: 'request'});
+    if (!info.success) {
+        document.body.innerText = info.message;
+        return;
+    }
+    const {sp: spOrigin, idp: idpOrigin, audience: scopeId } = info.state;
+    document.querySelectorAll('.sp').forEach((e) => { e.innerText = spOrigin; });
+    document.querySelectorAll('.scope').forEach((e) => { e.innerText = scopeId; });
+    document.querySelectorAll('.idp').forEach((e) => { e.innerText = idpOrigin; });
+    document.querySelector('main').classList.add('has-data');
+})();
+
+
 browser.runtime.onMessage.addListener(async function(message, sender) {
     if (sender.id !== browser.runtime.id) return;
     
@@ -15,5 +37,5 @@ browser.runtime.onMessage.addListener(async function(message, sender) {
     document.querySelectorAll('.idp').forEach((e) => { e.innerText = idpOrigin; });
     document.getElementById('authn-link').href = authnURL;
     document.getElementById('cancel-link').href = cancelURL.toString();
-    document.querySelector('main').classList.add('has-data');
+    
 });

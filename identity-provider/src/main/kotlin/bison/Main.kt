@@ -33,6 +33,7 @@ import io.ktor.util.*
 import io.ktor.util.pipeline.*
 import java.lang.invoke.MethodHandles
 import java.net.URI
+import java.security.MessageDigest
 import java.util.*
 import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
@@ -118,13 +119,16 @@ fun Application.configureRouting() {
             get {
                 val oidcRequest = AuthenticationRequest.parse(call.request.queryString())
                 require(oidcRequest.responseType == ResponseType.IDTOKEN)
-                require(oidcRequest.getCustomParameter("pairwise_subject_type") == listOf("bison"))
 
                 val key = pickCacheKey()
                 cache[key] = oidcRequest
-
                 call.respond(FreeMarkerContent("choose-identity.ftl",
-                    mapOf("cacheKey" to key, "parameters" to call.parameters.toMap(), "version" to version)))
+                    mapOf(
+                        "cacheKey" to key,
+                        "parameters" to call.parameters.toMap(),
+                        "version" to version,
+                        "isBison" to (oidcRequest.getCustomParameter("pairwise_subject_type") == listOf("bison"))
+                    )))
             }
             post {
                 val callParams = call.receiveParameters()
@@ -134,23 +138,33 @@ fun Application.configureRouting() {
                     return@post
                 }
 
-                val blindedScopeId = Base64Url.decode(oidcRequest.clientID.value)
                 val localUser = localUserSecrets[callParams["who"]]
                 if (localUser == null) {
                     call.respondWithError("Unknown user")
                     return@post
                 }
-                val blindedPseudonym = BISON.BlindEvaluate(localUser, blindedScopeId)
 
                 val claims = JWTClaimsSet.Builder()
-                    .subject(Base64Url.encode(blindedPseudonym))
-                    .claim("pairwise_subject_type", "bison")
-                    .audience(Base64Url.encode(blindedScopeId))
                     .issuer(baseURI.toString())
                     .issueTime(Date())
                     .expirationTime(Date(Date().time + 60 * 1000))
                     .claim("nonce", oidcRequest.nonce.value)
-                    .build()
+                    .apply {
+                        if (oidcRequest.getCustomParameter("pairwise_subject_type") == listOf("bison")) {
+                            val blindedScopeId = Base64Url.decode(oidcRequest.clientID.value)
+                            val blindedPseudonym = BISON.BlindEvaluate(localUser, blindedScopeId)
+                            claim("pairwise_subject_type", "bison")
+                            subject(Base64Url.encode(blindedPseudonym))
+                            audience(Base64Url.encode(blindedScopeId))
+                        } else {
+                            val audienceId = oidcRequest.clientID.value
+                            val ppid = MessageDigest.getInstance("SHA-512").digest(
+                                "PPID:${audienceId}:${localUser.decodeToString()}".toByteArray()
+                            ).let(Base64Url::encode)
+                            subject(ppid)
+                            audience(audienceId)
+                        }
+                    }.build()
 
                 val jwt = SignedJWT(
                     JWSHeader.Builder(JWSAlgorithm.ES256).keyID(privateKey.keyID).build(),

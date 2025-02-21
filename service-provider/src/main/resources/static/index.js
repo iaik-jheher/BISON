@@ -1,8 +1,8 @@
 (()=> {
-    if ((!('BISON' in window)) || (window.BISON.version !== '0.0.9')) {
+    /*if ((!('BISON' in window)) || (window.BISON.version !== '0.0.9')) {
         window.location = '/extension.html';
         return;
-    }
+    }*/
     const status = ((m) => {
         document.getElementById('status').innerText = ('' + m);
     });
@@ -19,7 +19,7 @@
             }
             console.log('authn request from server',info);
             status('Requesting authentication...');
-            await window.BISON.pleaseAuthenticate(info);
+            window.location = info.authnUri;
         } catch (e) {
             console.error(e);
             status('FAIL: ' + e);

@@ -59,3 +59,8 @@ main {
 }
 
 span.mono { font-family: monospace; }
+
+li.happy { color: #003500; }
+li.happy::marker { list-style-type: '☺';}
+li.sad { color: #500000; text-decoration: underline; font-weight: bold; }
+li.sad::marker { list-style-type: '☹'; }

@@ -20,7 +20,7 @@ repositories {
 
 dependencies {
     implementation(files("./dep/bison-QUICK-DIRTY-TEST-ONLY.jar"))
-    implementation("com.nimbusds:oauth2-oidc-sdk:10.15")
+    implementation("com.nimbusds:oauth2-oidc-sdk:11.23")
     implementation("io.ktor:ktor-server-core-jvm:2.3.4")
     implementation("io.ktor:ktor-server-netty-jvm:2.3.4")
     implementation("io.ktor:ktor-server-freemarker:2.3.4")

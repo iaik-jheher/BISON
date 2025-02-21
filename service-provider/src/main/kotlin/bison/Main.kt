@@ -1,8 +1,13 @@
 package bison
 
 import com.nimbusds.jose.JWSAlgorithm
+import com.nimbusds.oauth2.sdk.ResponseMode
+import com.nimbusds.oauth2.sdk.ResponseType
+import com.nimbusds.oauth2.sdk.Scope
 import com.nimbusds.oauth2.sdk.id.ClientID
 import com.nimbusds.oauth2.sdk.id.Issuer
+import com.nimbusds.oauth2.sdk.id.State
+import com.nimbusds.openid.connect.sdk.AuthenticationRequest
 import com.nimbusds.openid.connect.sdk.AuthenticationResponseParser
 import com.nimbusds.openid.connect.sdk.Nonce
 import com.nimbusds.openid.connect.sdk.op.OIDCProviderMetadata
@@ -67,14 +72,13 @@ val version: String by lazy {
     ?: "local"
 }
 
-data class Info(val nonce: String)
+data class Info(val nonce: Nonce)
 
-val cache: MutableMap<String, Info> = mutableMapOf()
-fun pickCacheKey(): String {
+val cache: MutableMap<State, Info> = mutableMapOf()
+fun newCacheKey(info: Info): State {
     while (true) {
-        val key = UUID.randomUUID().toString()
-        if (!cache.containsKey(key))
-            return key
+        val key = State()
+        cache.putIfAbsent(key, info) ?: return key
     }
 }
 
@@ -109,20 +113,28 @@ fun Application.configureRouting() {
         staticResources("/static", "static")
         route("auth") {
             get {
-                val state = pickCacheKey()
-                val nonce = Nonce().toString()
+                val nonce = Nonce()
+                val state = newCacheKey(Info(nonce))
+
+                val request = AuthenticationRequest.Builder(
+                    ResponseType.IDTOKEN,
+                    Scope("openid"),
+                    ClientID(ourScopeId),
+                    ourBaseURI.resolve("/authenticated")
+                ).apply {
+                    endpointURI(issuer.authorizationEndpointURI)
+                    state(state)
+                    nonce(nonce)
+                    responseMode(ResponseMode.FORM_POST)
+                    customParameter("audience_id", ourScopeId)
+                    customParameter("pairwise_subject_types", "bison")
+                }.build()
 
                 cache[state] = Info(nonce = nonce)
 
                 call.respondText(
                     JSONObject(
-                        mapOf(
-                            "authorizationEndpointURI" to issuer.authorizationEndpointURI.toString(),
-                            "scopeId" to ourScopeId,
-                            "nonce" to nonce,
-                            "state" to state,
-                            "redirectURI" to ourBaseURI.resolve("/authenticated").toString()
-                        )
+                        mapOf("authnUri" to request.toURI().toString()),
                     ).toJSONString(),
                     status = HttpStatusCode.OK, contentType = ContentType.Application.Json
                 )
@@ -133,57 +145,71 @@ fun Application.configureRouting() {
                 val responseParams = call.receiveParameters().toMap()
                 val response =
                     AuthenticationResponseParser.parse(URI(call.request.uri), responseParams)
-                val state = cache.remove(response.state.value)
+                val state = cache.remove(response.state)
                 if (state == null) {
                     call.respondWithError("Unexpected response; did you use the \"Back\" button?")
                     return@post
                 }
 
                 if (!response.indicatesSuccess()) {
-                    call.respondWithError("Authentication failed")
+                    call.respondWithError("Authentication failed (${response.toErrorResponse().errorObject.description ?: "<null>"})")
                     return@post
                 }
                 val successResponse = response.toSuccessResponse()
 
                 val claimedBlind = responseParams["blind"]?.firstOrNull()?.let { Base64Url.decode(it) }
-                if (claimedBlind == null) {
-                    call.respondWithError("Incomplete BISON response (blind missing)")
-                    return@post
-                }
-                val expectedClientIDForClaimedBlind = ClientID(
-                    Base64Url.encode(
-                        BISON.Blind(ourScopeId.toByteArray(), claimedBlind)
+                if (claimedBlind != null) {
+                    // BISON-OIDC
+                    val expectedClientIDForClaimedBlind = ClientID(
+                        Base64Url.encode(
+                            BISON.Blind(ourScopeId.toByteArray(), claimedBlind)
+                        )
                     )
-                )
 
-                val validator = IDTokenValidator(
-                    issuer.issuer, expectedClientIDForClaimedBlind,
-                    JWSAlgorithm.ES256, issuer.jwkSet
-                )
-
-                val expectedNonce = Base64Url.encode(
-                    MessageDigest.getInstance("SHA-512").digest(
-                        "BISON:${ourBaseURI.origin}:${state.nonce}".toByteArray()))
-
-                val claims = validator.validate(successResponse.idToken, Nonce(expectedNonce))
-
-                if (claims.getStringClaim("pairwise_subject_type") != "bison") {
-                    call.respondWithError("Not a BISON credential")
-                    return@post
-                }
-
-                val userIdentifier = Base64Url.encode(
-                    BISON.Finalize(
-                        ourScopeId.toByteArray(), claimedBlind, Base64Url.decode(claims.subject.value)
+                    val validator = IDTokenValidator(
+                        issuer.issuer, expectedClientIDForClaimedBlind,
+                        JWSAlgorithm.ES256, issuer.jwkSet
                     )
-                )
 
-                call.respond(FreeMarkerContent("authenticated.ftl",
-                    mapOf("idp" to URI(issuer.issuer.value),
-                        "sp" to ourBaseURI.origin,
-                        "scope" to ourScopeId,
-                        "uid" to userIdentifier,
-                        "version" to version)))
+                    val expectedNonce = Base64Url.encode(
+                        MessageDigest.getInstance("SHA-512").digest(
+                            "BISON:${ourBaseURI.origin}:${state.nonce}".toByteArray()))
+
+                    val claims = validator.validate(successResponse.idToken, Nonce(expectedNonce))
+
+                    if (claims.getStringClaim("pairwise_subject_type") != "bison") {
+                        call.respondWithError("Not a BISON credential")
+                        return@post
+                    }
+
+                    val userIdentifier = Base64Url.encode(
+                        BISON.Finalize(
+                            ourScopeId.toByteArray(), claimedBlind, Base64Url.decode(claims.subject.value)
+                        )
+                    )
+
+                    call.respond(FreeMarkerContent("authenticated.ftl",
+                        mapOf("idp" to URI(issuer.issuer.value),
+                            "sp" to ourBaseURI.origin,
+                            "scope" to ourScopeId,
+                            "uid" to userIdentifier,
+                            "version" to version,
+                            "isBison" to true)))
+                } else {
+                    val validator = IDTokenValidator(
+                        issuer.issuer, ClientID(ourScopeId),
+                        JWSAlgorithm.ES256, issuer.jwkSet
+                    )
+                    val claims = validator.validate(successResponse.idToken, state.nonce)
+                    val userIdentifier = claims.subject.value
+                    call.respond(FreeMarkerContent("authenticated.ftl",
+                        mapOf("idp" to URI(issuer.issuer.value),
+                            "sp" to ourBaseURI.origin,
+                            "scope" to ourScopeId,
+                            "uid" to userIdentifier,
+                            "version" to version,
+                            "isBison" to false)))
+                }
             }
         }
     }

@@ -1,7 +1,8 @@
+<#-- @ftlvariable name="isBison" type="Boolean" -->
 <#-- @ftlvariable name="version" type="String" -->
 <#-- @ftlvariable name="cacheKey" type="String" -->
 <#-- @ftlvariable name="parameters" type="kotlin.collections.Map<kotlin.String,kotlin.collections.List<kotlin.String>>" -->
-
+<!doctype html>
 <html lang="en">
 <head>
     <link rel="preload" href="/static/bison.jpg" as="image" type="image/jpeg">
@@ -17,13 +18,19 @@
 
 <p>Welcome to the identity provider!</p>
 
-<p>I've received an authentication request. I don't know who it's from. Here's the data I got:
-<pre>
-    <#list parameters as key, values><#list values as value>
-        ${key}: ${value}
-    </#list></#list>
-</pre>
+<p>
+    <#if isBison>
+        I've received an authentication request. I don't know who it's from. Here's the data I got:
+    <#else>
+        I've received an authentication request from <span style="font-family: monospace; font-weight: bold;">${parameters["client_id"][0]}</span>. I know you are talking to this website. Here's the data I got:
+    </#if>
+    <pre>
+        <#list parameters as key, values><#list values as value>
+            ${key}: ${value}
+        </#list></#list>
+    </pre>
 </p>
+
 
 <p>For purposes of this authentication process: who are you?
 <form method="POST" action="/login">

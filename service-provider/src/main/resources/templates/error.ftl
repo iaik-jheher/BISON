@@ -1,5 +1,5 @@
 <#-- @ftlvariable name="message" type="String" -->
-
+<!doctype html>
 <html lang="en">
 <head>
     <title>Authentication Failed</title>
