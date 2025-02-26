@@ -29,6 +29,9 @@
             ${key}: ${value}
         </#list></#list>
     </pre>
+    <#if !isBison>
+        Want a peek of the future of authentication? Install <a href="/static/extension.xpi">the BISON extension</a>.
+    </#if>
 </p>
 
 
