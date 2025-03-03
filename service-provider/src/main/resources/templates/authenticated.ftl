@@ -44,6 +44,9 @@
         <li>Your pseudonym is valid for <span class="mono">${scope}</span>.</li>
         <li>You logged in using <span class="mono">${idp}</span>.</li>
     </ul>
+    <#if !isBison>
+        Want to change that? Install <a href="/redirect/extension.xpi">the BISON browser extension</a>.
+    </#if>
 </p>
 <a href="/"><button id="authn">Exit the grasslands and try again.</button></a>
 </main>

@@ -109,8 +109,10 @@ fun Application.configureRouting() {
                 call.respond(FreeMarkerContent("index.ftl", mapOf("version" to version)))
             }
         }
-        staticResources("/", "base")
         staticResources("/static", "static")
+        get("/redirect/extension.xpi") {
+            call.respondRedirect(issuer.authorizationEndpointURI.resolve("/static/extension.xpi").toString())
+        }
         route("auth") {
             get {
                 val nonce = Nonce()
@@ -132,12 +134,7 @@ fun Application.configureRouting() {
 
                 cache[state] = Info(nonce = nonce)
 
-                call.respondText(
-                    JSONObject(
-                        mapOf("authnUri" to request.toURI().toString()),
-                    ).toJSONString(),
-                    status = HttpStatusCode.OK, contentType = ContentType.Application.Json
-                )
+                call.respondRedirect(request.toURI().toString())
             }
         }
         route("authenticated") {

@@ -84,7 +84,9 @@ val version: String by lazy {
         ?: "local"
 }
 
-val cache: MutableMap<String, AuthenticationRequest> = mutableMapOf()
+data class State(val authnRequest: AuthenticationRequest, val isBison: Boolean)
+
+val cache: MutableMap<String, State> = mutableMapOf()
 fun pickCacheKey(): String {
     while (true) {
         val key = UUID.randomUUID().toString()
@@ -120,28 +122,46 @@ fun Application.configureRouting() {
                 val oidcRequest = AuthenticationRequest.parse(call.request.queryString())
                 require(oidcRequest.responseType == ResponseType.IDTOKEN)
 
+                val isBison = (oidcRequest.getCustomParameter("pairwise_subject_type") == listOf("bison"))
                 val key = pickCacheKey()
-                cache[key] = oidcRequest
+                cache[key] = State(oidcRequest, isBison)
                 call.respond(FreeMarkerContent("choose-identity.ftl",
                     mapOf(
                         "cacheKey" to key,
                         "parameters" to call.parameters.toMap(),
                         "version" to version,
-                        "isBison" to (oidcRequest.getCustomParameter("pairwise_subject_type") == listOf("bison"))
+                        "isBison" to isBison,
                     )))
             }
             post {
                 val callParams = call.receiveParameters()
-                val oidcRequest = cache.remove(callParams["info"])
-                if (oidcRequest == null) {
+                val cacheKey = callParams["info"]
+                val requestInfo = cache[cacheKey]
+                if (requestInfo == null) {
                     call.respondWithError("Unexpected request; did you click \"Back\"?")
                     return@post
                 }
+
+                val oidcRequest = requestInfo.authnRequest
 
                 val localUser = localUserSecrets[callParams["who"]]
                 if (localUser == null) {
                     call.respondWithError("Unknown user")
                     return@post
+                }
+
+                if (!requestInfo.isBison) {
+                    val hasConsent = callParams["consent"]
+                    if (hasConsent == null) {
+                        call.respond(FreeMarkerContent("consent.ftl",
+                            mapOf(
+                                "cacheKey" to cacheKey,
+                                "clientId" to oidcRequest.clientID.value,
+                                "version" to version,
+                                "who" to callParams["who"]
+                            )))
+                        return@post
+                    }
                 }
 
                 val claims = JWTClaimsSet.Builder()

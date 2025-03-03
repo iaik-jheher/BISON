@@ -6,13 +6,12 @@
     <link rel="preload" href="/static/grasslands.jpg" as="image" type="image/jpeg">
     <title>BISON Service Provider</title>
     <link rel="stylesheet" href="/static/style.css">
-    <script defer type="text/javascript" src="/static/index.js"></script>
 </head>
 <body>
 <main>
 <h1>BISON Service Provider</h1>
 <p>Welcome to the grasslands. Please authenticate to gain access.</p>
-<button id="authn">Let me in!</button>
+<a href="/auth"><button id="authn">Let me in!</button></a>
 <pre id="status"></pre>
 </main>
 <div id="version-note">bison-sp ${version}</div>
