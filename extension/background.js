@@ -230,7 +230,7 @@ const consentPopup = (async (spOrigin, idpOrigin, audienceId) => {
     const window = await browser.windows.create({
         type: 'detached_panel',
         url: `authn.html?state=${state}`,
-        width: 800,
+        width: 1000,
         height: 600,
     });
     return new Promise((r) => { consentResolversByWindowId[window.id] = r; });
