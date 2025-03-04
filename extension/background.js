@@ -257,9 +257,9 @@ browser.webRequest.onBeforeRequest.addListener(async function(requestDetails) {
             const theirNonce = target.searchParams.get('nonce');
             if (!(theirState && audienceId && redirectUri && theirNonce)) { console.log('incomplete information '); return; }
             if (!(await isRegistrableDomainSuffixOrIsEqual(audienceId, origin.hostname))) { console.log(`invalid audience ID (expected registrable superdomain of '${origin.hostname}'.`); return; }
-            if (safeurl(redirectUri).host !== origin.host) { console.log('invalid return uri'); return; }
+            if (safeurl(redirectUri).origin !== origin.origin) { console.log('invalid return uri'); return; }
             
-            const shouldProceed = await consentPopup(origin.origin, target.origin, audienceId);
+            const shouldProceed = await consentPopup(origin.host, target.host, audienceId);
             if (!shouldProceed) {
                 const newState = await putState({returnURL: redirectUri, theirState, error: 'access_denied', error_description: 'Process cancelled by user'});
                 return {redirectUrl: returnPage.toString()+`?state=${newState}`};
