@@ -11,8 +11,6 @@
         <h1>BISON Identity Provider</h1>
         <main><p>
             You should be redirected automatically. If you are not, click this button:
-            <!-- TODO i would really like to use POST
-             but getting the information back into the addon seems impossible if you POST to moz-extension:// ... -->
             <form method="${method}" action="${redirectUri}">
                 <#list params as key, values>
                     <#list values as value>

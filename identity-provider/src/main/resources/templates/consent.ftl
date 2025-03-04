@@ -2,6 +2,9 @@
 <#-- @ftlvariable name="version" type="String" -->
 <#-- @ftlvariable name="cacheKey" type="String" -->
 <#-- @ftlvariable name="clientId" type="String" -->
+<#-- @ftlvariable name="failureMethod" type="String" -->
+<#-- @ftlvariable name="failureRedirectUri" type="String" -->
+<#-- @ftlvariable name="failureState" type="String" -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -20,15 +23,21 @@
 
     <p>Do you want to log in to <span style="font-family: monospace; font-weight: bold;">${clientId}</span> as "${who}"?</p>
 
+    <form id="failure-form" method="${failureMethod}" action="${failureRedirectUri}">
+        <input type="hidden" name="state" value="${failureState}">
+        <input type="hidden" name="error" value="access_denied">
+        <input type="hidden" name="error_description" value="Authentication process cancelled by user">
+    </form>
+
     <form method="POST" action="/login">
         <input type="hidden" name="info" value="${cacheKey}">
         <input type="hidden" name="who" value="${who}">
-        <button type="submit" style="background: rgba(0,255,0,.15)" name="consent" value="true">Yes, proceed with login</button>
-        <button type="submit" style="background: rgba(255,0,0,.15)" name="consent" value="false">Cancel and return</button>
+        <button type="submit" id="btn-consent" name="consent" value="true">Yes, proceed with login</button>
+        <button type="submit" id="btn-no-consent" form="failure-form">Cancel and return</button>
     </form>
     <p>
-        ⚠️ Of course, the problem is that you've told me that you're talking to <span style="font-family: monospace; font-weight: bold;">${clientId}</span>.
-        Want a peek of the future of authentication? Install <a href="/static/extension.xpi">the BISON extension</a>.
+        ⚠️ Of course, the problem is that you've told me that you're talking to <span style="font-family: monospace; font-weight: bold;">${clientId}</span>.<br>
+        ⚠️ Want a peek of the future of authentication? Install <a href="/static/extension.xpi">the BISON extension</a>.
     </p>
 </main>
 <div id="version-note">bison-idp ${version}</div>

@@ -152,17 +152,22 @@ fun Application.configureRouting() {
 
                 if (!requestInfo.isBison) {
                     val hasConsent = callParams["consent"]
-                    if (hasConsent == null) {
+                    if (hasConsent != "true") {
                         call.respond(FreeMarkerContent("consent.ftl",
                             mapOf(
                                 "cacheKey" to cacheKey,
                                 "clientId" to oidcRequest.clientID.value,
                                 "version" to version,
-                                "who" to callParams["who"]
+                                "who" to callParams["who"],
+                                "failureMethod" to (if (oidcRequest.responseMode == ResponseMode.FORM_POST) "POST" else "GET"),
+                                "failureRedirectUri" to oidcRequest.redirectionURI.toString(),
+                                "failureState" to oidcRequest.state
                             )))
                         return@post
                     }
                 }
+
+                cache.remove(cacheKey)
 
                 val claims = JWTClaimsSet.Builder()
                     .issuer(baseURI.toString())

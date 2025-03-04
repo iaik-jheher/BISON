@@ -112,3 +112,11 @@ form:invalid > .enabled, form:not(:invalid) > .disabled {
     padding: 3px 2px 2px 6px;
     background: rgba(255,255,255,.93);
 }
+
+#btn-consent, #btn-no-consent {
+    width: calc(50% - 4px);
+    box-sizing: border-box;
+    margin: 0 2px;
+}
+#btn-consent    { background: rgba(  0,255,  0,.15); }
+#btn-no-consent { background: rgba(255,  0,  0,.15); }
