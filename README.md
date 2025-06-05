@@ -17,7 +17,7 @@
 - Preprint: https://arxiv.org/abs/2406.01518
 
 
-# Citing
+### Citing
 
 > Heher, J., More, S., & Heimberger, L. BISON: Blind Identification with Stateless scOped pseudoNyms. In Proceedings of the 2025 ACM Asia Conference on Computer and Communications Security: AsiaCCS 2025. https://doi.org/10.1145/3708821.3733890
 
